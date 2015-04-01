@@ -42,6 +42,9 @@ int vnc_guac_client_handle_messages(guac_client* client) {
     vnc_guac_client_data* guac_client_data = (vnc_guac_client_data*) client->data;
     rfbClient* rfb_client = guac_client_data->rfb_client;
 
+    guac_client_log(client, GUAC_LOG_DEBUG,
+            "Beginning frame: Waiting for messages from VNC server...");
+
     /* Initially wait for messages */
     int wait_result = WaitForMessage(rfb_client, 1000000);
     guac_timestamp frame_start = guac_timestamp_current();
@@ -49,6 +52,9 @@ int vnc_guac_client_handle_messages(guac_client* client) {
 
         guac_timestamp frame_end;
         int frame_remaining;
+
+        guac_client_log(client, GUAC_LOG_DEBUG,
+                "Wait over (%i). Handling messages...", wait_result);
 
         /* Handle any message received */
         if (!HandleRFBServerMessage(rfb_client)) {
@@ -61,9 +67,12 @@ int vnc_guac_client_handle_messages(guac_client* client) {
         frame_remaining = frame_start + GUAC_VNC_FRAME_DURATION - frame_end;
 
         /* Wait again if frame remaining */
-        if (frame_remaining > 0)
+        if (frame_remaining > 0) {
+            guac_client_log(client, GUAC_LOG_DEBUG,
+                    "Continuing frame: Waiting for additional messages...");
             wait_result = WaitForMessage(rfb_client,
                     GUAC_VNC_FRAME_TIMEOUT*1000);
+        }
         else
             break;
 
@@ -75,6 +84,7 @@ int vnc_guac_client_handle_messages(guac_client* client) {
         return 1;
     }
 
+    guac_client_log(client, GUAC_LOG_DEBUG, "End of frame");
     guac_common_surface_flush(guac_client_data->default_surface);
     return 0;
 

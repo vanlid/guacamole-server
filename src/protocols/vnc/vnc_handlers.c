@@ -64,6 +64,10 @@ void guac_vnc_cursor(rfbClient* client, int x, int y, int w, int h, int bpp) {
 
     int dx, dy;
 
+    guac_client_log(gc, GUAC_LOG_DEBUG,
+            "Received %ix%i cursor at %i bpp, hotspot=(%i, %i)",
+            w, h, bpp, x, y);
+
     /* Copy image data from VNC client to RGBA buffer */
     for (dy = 0; dy<h; dy++) {
 
@@ -153,8 +157,13 @@ void guac_vnc_update(rfbClient* client, int x, int y, int w, int h) {
     unsigned int fb_stride;
     unsigned char* fb_row_current;
 
+    guac_client_log(gc, GUAC_LOG_DEBUG,
+            "Received %ix%i update at (%i, %i)",
+            w, h, x, y);
+
     /* Ignore extra update if already handled by copyrect */
     if (guac_client_data->copy_rect_used) {
+        guac_client_log(gc, GUAC_LOG_DEBUG, "Ignoring as it was already handled by copyrect.");
         guac_client_data->copy_rect_used = 0;
         return;
     }
@@ -232,6 +241,10 @@ void guac_vnc_copyrect(rfbClient* client, int src_x, int src_y, int w, int h, in
     guac_client* gc = rfbClientGetClientData(client, __GUAC_CLIENT);
     vnc_guac_client_data* guac_client_data = (vnc_guac_client_data*) gc->data;
 
+    guac_client_log(gc, GUAC_LOG_DEBUG,
+            "Received %ix%i copyrect: (%i, %i) -> (%i, %i)",
+            w, h, src_x, src_y, dest_x, dest_y);
+
     /* For now, only use default layer */
     guac_common_surface_copy(guac_client_data->default_surface, src_x,  src_y, w, h,
                              guac_client_data->default_surface, dest_x, dest_y);
@@ -242,10 +255,15 @@ void guac_vnc_copyrect(rfbClient* client, int src_x, int src_y, int w, int h, in
 
 char* guac_vnc_get_password(rfbClient* client) {
     guac_client* gc = rfbClientGetClientData(client, __GUAC_CLIENT);
+    guac_client_log(gc, GUAC_LOG_DEBUG, "guac_vnc_get_password()");
     return ((vnc_guac_client_data*) gc->data)->password;
 }
 
 void guac_vnc_set_pixel_format(rfbClient* client, int color_depth) {
+
+    guac_client* gc = rfbClientGetClientData(client, __GUAC_CLIENT);
+    guac_client_log(gc, GUAC_LOG_DEBUG, "guac_vnc_set_pixel_format()");
+
     switch(color_depth) {
         case 8:
             client->format.depth        = 8;
@@ -288,6 +306,8 @@ rfbBool guac_vnc_malloc_framebuffer(rfbClient* rfb_client) {
     guac_client* gc = rfbClientGetClientData(rfb_client, __GUAC_CLIENT);
     vnc_guac_client_data* guac_client_data = (vnc_guac_client_data*) gc->data;
 
+    guac_client_log(gc, GUAC_LOG_DEBUG, "guac_vnc_malloc_framebuffer()");
+
     /* Resize surface */
     if (guac_client_data->default_surface != NULL)
         guac_common_surface_resize(guac_client_data->default_surface, rfb_client->width, rfb_client->height);
@@ -306,14 +326,25 @@ void guac_vnc_cut_text(rfbClient* client, const char* text, int textlen) {
     const char* input = text;
     char* output = received_data;
 
+    guac_client_log(gc, GUAC_LOG_DEBUG,
+            "Received %i bytes of ISO8859-1 clipboard data. "
+            "Converting to UTF8...", textlen);
+
     /* Convert clipboard contents */
     guac_iconv(GUAC_READ_ISO8859_1, &input, textlen,
                GUAC_WRITE_UTF8, &output, sizeof(received_data));
+
+    guac_client_log(gc, GUAC_LOG_DEBUG,
+            "%i bytes of ISO8859-1 converted to %i bytes of UTF8. Sending...",
+            textlen, output - received_data);
 
     /* Send converted data */
     guac_common_clipboard_reset(client_data->clipboard, "text/plain");
     guac_common_clipboard_append(client_data->clipboard, received_data, output - received_data);
     guac_common_clipboard_send(client_data->clipboard, gc);
+
+    guac_client_log(gc, GUAC_LOG_DEBUG,
+            "%i bytes of UTF8 sent.", output - received_data);
 
 }
 
