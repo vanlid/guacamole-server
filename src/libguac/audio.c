@@ -40,6 +40,13 @@ guac_audio_stream* guac_audio_stream_alloc(guac_client* client, guac_audio_encod
 
     guac_audio_stream* audio;
 
+    /* Disable sound sending */
+    if (client == NULL) {
+        
+        encoder = wav_encoder;
+        
+    }
+    
     /* Choose an encoding if not specified */
     if (encoder == NULL) {
 
@@ -89,8 +96,19 @@ guac_audio_stream* guac_audio_stream_alloc(guac_client* client, guac_audio_encod
 
     /* Assign encoder */
     audio->encoder = encoder;
-    audio->stream = guac_client_alloc_stream(client);
-
+    
+    /* Disable sound sending */
+    if (client == NULL) {
+        
+        audio->disable_send = 1;
+        
+    } else {
+        
+        audio->disable_send = 0;
+        audio->stream = guac_client_alloc_stream(client);
+        
+    }
+    
     return audio;
 }
 
@@ -121,15 +139,19 @@ void guac_audio_stream_end(guac_audio_stream* audio) {
     duration = ((double) (audio->pcm_bytes_written * 1000 * 8))
                 / audio->rate / audio->channels / audio->bps;
 
-    /* Send audio */
-    guac_protocol_send_audio(audio->client->socket, audio->stream,
+    if(audio->disable_send == 0) {
+        
+        /* Send audio */
+        guac_protocol_send_audio(audio->client->socket, audio->stream,
             audio->stream->index, audio->encoder->mimetype, duration);
 
-    guac_protocol_send_blob(audio->client->socket, audio->stream,
+        guac_protocol_send_blob(audio->client->socket, audio->stream,
             audio->encoded_data, audio->encoded_data_used);
 
-    guac_protocol_send_end(audio->client->socket, audio->stream);
-
+        guac_protocol_send_end(audio->client->socket, audio->stream);
+        
+    }
+    
     /* Clear data */
     audio->encoded_data_used = 0;
 
