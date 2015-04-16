@@ -61,7 +61,11 @@ struct guac_audio_encoder {
 };
 
 struct guac_audio_stream {
-
+    /**
+     * Disable sound sending
+     */
+    int disable_send;
+    
     /**
      * PCM data buffer, 16-bit samples, 2-channel, 44100 Hz.
      */
