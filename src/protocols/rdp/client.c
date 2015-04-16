@@ -259,7 +259,26 @@ BOOL rdp_freerdp_pre_connect(freerdp* instance) {
                     "No available audio encoding. Sound disabled.");
 
     } /* end if audio enabled */
+    else if (guac_client_data->settings.printing_enabled
+        || guac_client_data->settings.drive_enabled) { 
+        
+        guac_client_data->audio = guac_audio_stream_alloc(NULL, NULL);
+        
+        /* If an encoding is available, load the sound plugin */
+        if (guac_client_data->audio != NULL) {
 
+            /* Load sound plugin */
+            if (freerdp_channels_load_plugin(channels, instance->settings,
+                        "guacsnd", guac_client_data->audio))
+                guac_client_log(client, GUAC_LOG_WARNING,
+                        "Failed to load guacsnd plugin. Redirect will not work, on Windows Server 2012+.");
+
+        }
+        else
+            guac_client_log(client, GUAC_LOG_INFO,
+                    "No available audio encoding. Sound disabled.");
+                    
+    }
     /* Load filesystem if drive enabled */
     if (guac_client_data->settings.drive_enabled) {
         guac_client_data->filesystem =
